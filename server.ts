@@ -2,8 +2,8 @@ import http from "http";
 import url from "url";
 import fs from "fs";
 import express from "express";
+import cors from "cors";
 
-const PORT = 3000;
 const app = express();
 
 let paginaErr: string;
@@ -14,6 +14,7 @@ import dotenv from "dotenv";
 dotenv.config({path: ".env"});
 const connectionString = process.env.connectionStringAtlas;
 const DB_NAME = process.env.dbName;
+const PORT = process.env.port;
 console.log(connectionString);
 
 //la callback di create server viene eseguita ad ogni richiesta giunta dal client
@@ -63,6 +64,32 @@ app.use("/", (req: any, res: any, next: any) => {
     next();
 });
 
+//5. CORS
+const whitelist = [
+    "http://my-crud-server.herokuapp.com ", // porta 80 (default)
+    "https://my-crud-server.herokuapp.com ", // porta 443 (default)
+    "http://localhost:3000",
+    "https://localhost:3001",
+    "http://localhost:4200", // server angular
+    "https://cordovaapp", // porta 443 (default)
+   ];
+   
+const corsOptions = {
+    origin: function(origin, callback) {
+    if (!origin) // browser direct call
+    return callback(null, true);
+    if (whitelist.indexOf(origin) === -1) {
+    var msg = `The CORS policy for this site does not
+    allow access from the specified Origin.`
+    return callback(new Error(msg), false);
+    }
+    else
+    return callback(null, true);
+    },
+    credentials: true
+   };
+   
+
 //Client routes
 
 app.get("/api/getCollection", async (req: any, res: any, next: any) => {
@@ -103,12 +130,15 @@ app.get("/api/:collection", async (req: any, res: any, next: any) => {
 
 app.get("/api/:collection/:id", async (req: any, res: any, next: any) => {
     let collectionName = req.params.collection;
-    let id = req.params.id;
+    let _id = req.params.id;
+
+    if(ObjectId.isValid(_id))
+    {
+        _id=new ObjectId(_id);
+    }
     const client = new MongoClient(connectionString);
     await client.connect();
     let collection = client.db(DB_NAME).collection(collectionName);
-
-    let _id = new ObjectId(id);
 
     collection.findOne({_id})
     .catch(err => {
@@ -146,11 +176,15 @@ app.delete("/api/:collection/:id", async (req: any, res: any, next: any) => {
     // let collectionName = req.params.collection;
     // let id = req.params.id;
     let {id: _id, collection: collectionName} = req.params;
+
+    if(ObjectId.isValid(_id))
+    {
+        _id=new ObjectId(_id);
+    }
+
     const client = new MongoClient(connectionString);
     await client.connect();
     let collection = client.db(DB_NAME).collection(collectionName);
-
-    _id = new ObjectId(_id);
 
     collection.deleteOne({_id})
     .catch(err => {
@@ -166,12 +200,16 @@ app.delete("/api/:collection/:id", async (req: any, res: any, next: any) => {
 
 app.put("/api/:collection/:id", async (req: any, res: any, next: any) => {
     let {id: _id, collection: collectionName} = req.params;
+
+    if(ObjectId.isValid(_id))
+    {
+        _id=new ObjectId(_id);
+    }
+
     const {values: action} = req.body;
     const client = new MongoClient(connectionString);
     await client.connect();
     let collection = client.db(DB_NAME).collection(collectionName);
-
-    _id = new ObjectId(_id);
 
     collection.updateOne({_id}, action)
     .catch(err => {
@@ -187,12 +225,16 @@ app.put("/api/:collection/:id", async (req: any, res: any, next: any) => {
 
 app.patch("/api/:collection/:id", async (req: any, res: any, next: any) => {
     let {id: _id, collection: collectionName} = req.params;
+
+    if(ObjectId.isValid(_id))
+    {
+        _id=new ObjectId(_id);
+    }
+
     const {values: action} = req.body;
     const client = new MongoClient(connectionString);
     await client.connect();
     let collection = client.db(DB_NAME).collection(collectionName);
-
-    _id = new ObjectId(_id);
 
     collection.updateOne({_id}, {$set: action})
     .catch(err => {
